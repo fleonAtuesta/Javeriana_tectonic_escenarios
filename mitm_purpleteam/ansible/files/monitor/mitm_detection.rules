@@ -1,0 +1,3 @@
+alert tcp any any -> any 80 (msg:"CTF-FLAG-BLUE-HTTP: Credentials in cleartext HTTP"; flow:to_server,established; content:"POST"; http_method; content:"password="; http_client_body; nocase; sid:9000005; rev:1;)
+alert dns any any -> any any (msg:"CTF-FLAG-BLUE-DNS: Suspicious DNS query corp.local"; dns_query; content:"corp.local"; nocase; sid:9000004; rev:1;)
+alert tcp any any -> any 80 (msg:"CTF-FLAG-BLUE-ARP: HTTP traffic possibly intercepted"; flow:to_server,established; content:"GET"; http_method; sid:9000001; rev:1;)

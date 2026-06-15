@@ -1,0 +1,23 @@
+---
+id: discovery_arp_scan
+name: ARP Network Discovery
+description: Descubre hosts activos en la red corporativa usando nmap y arp-scan
+tactic: discovery
+technique:
+  attack_id: T1046
+  name: Network Service Scanning
+platforms:
+  linux:
+    sh:
+      command: |
+        source /opt/mitm-scripts/targets.sh
+        nmap -sn $(ip route | grep -oP '\d+\.\d+\.\d+\.\d+/\d+' | head -1) 2>/dev/null
+        arp -a
+      parsers:
+        - module: plugins.stockpile.app.parsers.kali
+          relationships:
+            - source: host.ip.address
+              edge: has_arp_entry
+tags:
+  - discovery
+  - T1046

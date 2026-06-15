@@ -1,0 +1,29 @@
+============================================================
+CIBER RANGE MITM - CONSOLA RED TEAM
+Instancia #{{ instance_number }} | {{ lab_edition_name }}
+============================================================
+
+ADVERTENCIA: Solo para uso en este entorno autorizado.
+
+IPs de esta instancia:
+  webserver   : {{ hostvars['webserver']['ansible_host'] }}
+  workstation : {{ hostvars['workstation']['ansible_host'] }}
+  dns_server  : {{ hostvars['dns_server']['ansible_host'] }}
+
+Ejercicios disponibles en /opt/mitm-scripts/:
+
+  1. source /opt/mitm-scripts/targets.sh     → Cargar IPs
+  2. /opt/mitm-scripts/01_arp_scan.sh        → Descubrimiento
+  3. /opt/mitm-scripts/02_arp_poison.sh      → ARP Spoofing
+  4. /opt/mitm-scripts/03_dns_spoof.sh       → DNS Spoofing
+  5. /opt/mitm-scripts/04_http_intercept.sh  → Captura HTTP
+  6. /opt/mitm-scripts/05_ssl_strip.sh       → SSL Strip
+
+Flags a obtener:
+  CTF-FLAG-NET  → Script 01
+  CTF-FLAG-ARP  → Script 02
+  CTF-FLAG-DNS  → Script 03
+  CTF-FLAG-HTTP → Script 04
+  CTF-FLAG-SSL  → Script 05
+
+============================================================

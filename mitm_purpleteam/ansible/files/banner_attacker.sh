@@ -1,0 +1,13 @@
+#!/bin/bash
+echo "============================================"
+echo "  MITM Purple Team - Red Team Attacker"
+echo "  Tesis Maestría Seguridad Digital - UdelaR"
+echo "============================================"
+echo ""
+echo "Scripts disponibles en /opt/mitm-scripts/:"
+echo "  01_arp_scan.sh      - Escanear red"
+echo "  02_arp_poison.sh    - ARP Poisoning"
+echo "  03_dns_spoof.sh     - DNS Spoofing"
+echo "  04_http_intercept.sh - Interceptar HTTP"
+echo "  05_ssl_strip.sh     - SSL Stripping"
+echo ""

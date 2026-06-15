@@ -1,0 +1,98 @@
+- name: "MITM webserver per-instance configuration"
+  hosts: webserver
+  become: yes
+  tasks:
+
+    - name: "Create flags directory"
+      ansible.builtin.file:
+        path: /opt/flags
+        state: directory
+        mode: '0755'
+
+    - name: "Create CTF flag file for ARP exercise"
+      ansible.builtin.copy:
+        dest: /opt/flags/flag_arp.txt
+        content: "{{ parameters['arp_flag'] }}\n"
+        mode: '0600'
+
+    - name: "Create CTF flag for SSL strip exercise"
+      ansible.builtin.copy:
+        dest: /opt/flags/flag_ssl.txt
+        content: "{{ parameters['ssl_flag'] }}\n"
+        mode: '0640'
+
+    - name: "Deploy login.php with CTF flag"
+      ansible.builtin.template:
+        src: templates/login_web.php.j2
+        dest: /var/www/html/login.php
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: "Deploy secret.php con flag ARP"
+      ansible.builtin.template:
+        src: templates/secret.php.j2
+        dest: /var/www/html/secret.php
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: "Restart Apache"
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
+      ignore_errors: yes
+
+- name: "MITM dns_server per-instance configuration"
+  hosts: dns_server
+  become: yes
+  tasks:
+
+    - name: "Embed DNS flag"
+      ansible.builtin.copy:
+        dest: /opt/flag_dns.txt
+        content: "{{ parameters['dns_flag'] }}\n"
+        mode: '0644'
+
+- name: "MITM workstation per-instance configuration"
+  hosts: workstation
+  become: yes
+  tasks:
+
+    - name: "Embed network discovery flag"
+      ansible.builtin.copy:
+        dest: /opt/flag_net.txt
+        content: "{{ parameters['net_flag'] }}\n"
+        mode: '0644'
+
+- name: "MITM attacker per-instance configuration"
+  hosts: attacker
+  become: yes
+  tasks:
+
+    - name: "Deploy instance-specific targets file"
+      ansible.builtin.template:
+        src: templates/targets.sh.j2
+        dest: /opt/mitm-scripts/targets.sh
+        mode: '0755'
+
+- name: "MITM monitor per-instance configuration"
+  hosts: monitor
+  become: yes
+  tasks:
+
+    - name: "Create flags directory"
+      ansible.builtin.file:
+        path: /opt/flags
+        state: directory
+        mode: '0755'
+
+    - name: "Create Blue Team flag files"
+      ansible.builtin.copy:
+        dest: "/opt/flags/blue_{{ item.name }}.txt"
+        content: "{{ item.flag }}\n"
+        mode: '0640'
+      loop:
+        - { name: "arp",  flag: "{{ parameters['blue_arp_flag'] }}" }
+        - { name: "dns",  flag: "{{ parameters['blue_dns_flag'] }}" }
+        - { name: "http", flag: "{{ parameters['blue_http_flag'] }}" }

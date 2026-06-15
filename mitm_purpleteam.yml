@@ -1,0 +1,39 @@
+---
+# ============================================================
+# Archivo de edición del escenario MITM Purple Team
+# Configura parámetros variables por cada edición del curso
+# ============================================================
+
+# Nombre del laboratorio base definido en description.yml
+base_lab: mitm_purpleteam
+
+# Institución que ofrece esta edición
+institution: udelar
+
+# Nombre de esta edición
+lab_edition_name: mitm_purpleteam_2025
+
+# Número de instancias a desplegar (una por grupo/participante)
+instance_number: 1
+
+# Directorio con llaves SSH de profesores
+teacher_pubkey_dir: ./teacher_pubkeys
+
+# Prefijo para usuarios estudiantes
+student_prefix: trainee
+
+# Directorio con llaves SSH de estudiantes
+student_pubkey_dir: ./student_pubkeys
+
+# Generar contraseñas pseudoaleatorias para estudiantes
+create_students_passwords: true
+
+# Semilla para generación de flags y parámetros aleatorios
+random_seed: MiTM2025udelar_purpleteam_seed
+
+# Caldera para simulación de ataques automatizados
+caldera_settings:
+  enable: yes
+  vcpu: 2
+  memory: 4096
+  disk: 20

@@ -1,0 +1,3 @@
+# resolv.conf.j2
+nameserver {{ hostvars['dns_server']['ansible_host'] }}
+search corp.local

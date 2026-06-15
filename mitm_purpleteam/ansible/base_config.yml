@@ -1,0 +1,375 @@
+# ============================================================
+# base_config.yml - Configuración base del escenario MITM
+# Se aplica a la imagen base de cada máquina ANTES del clonado.
+# Internet disponible en esta etapa.
+# ============================================================
+
+# ------------------------------------------------------------
+# ATACANTE - Kali Linux con herramientas MITM
+# ------------------------------------------------------------
+- name: "MITM attacker configuration (Kali)"
+  hosts: attacker
+  become: yes
+  tasks:
+
+    - name: "Update repos"
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: "Install Red Team MITM tools"
+      ansible.builtin.package:
+        state: present
+        name:
+          - ettercap-text-only
+          - dsniff
+          - bettercap
+          - tcpdump
+          - tshark
+          - wireshark-common
+          - ngrep
+          - nmap
+          - arp-scan
+          - netdiscover
+          - net-tools
+          - iproute2
+          - dnsutils
+          - curl
+          - wget
+          - python3
+          - python3-pip
+          - sslstrip
+          - mitmproxy
+          - iptables
+
+    - name: "Install dnschef via apt"
+      ansible.builtin.package:
+        name: dnschef
+        state: present
+
+    - name: "Enable IP forwarding permanently"
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes
+
+    - name: "Create scripts directory"
+      ansible.builtin.file:
+        path: /opt/mitm-scripts
+        state: directory
+        mode: '0755'
+
+    - name: "Copy Red Team scripts"
+      ansible.builtin.copy:
+        src: "files/scripts/{{ item }}"
+        dest: "/opt/mitm-scripts/{{ item }}"
+        mode: '0755'
+      loop:
+        - 01_arp_scan.sh
+        - 02_arp_poison.sh
+        - 03_dns_spoof.sh
+        - 04_http_intercept.sh
+        - 05_ssl_strip.sh
+
+    - name: "Copy attacker welcome banner"
+      ansible.builtin.copy:
+        src: files/banner_attacker.sh
+        dest: /etc/profile.d/banner.sh
+        mode: '0755'
+
+# ------------------------------------------------------------
+# WEBSERVER - Apache HTTP deliberadamente inseguro
+# ------------------------------------------------------------
+- name: "MITM webserver configuration (Ubuntu 22)"
+  hosts: webserver
+  become: yes
+  tasks:
+
+    - name: "Update repos"
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: "Install Apache and PHP"
+      ansible.builtin.package:
+        state: present
+        name:
+          - apache2
+          - php
+          - libapache2-mod-php
+          - php-mysql
+
+    - name: "Install Wazuh agent dependencies"
+      ansible.builtin.package:
+        state: present
+        name:
+          - curl
+          - gnupg
+
+    - name: "Deploy vulnerable web application"
+      ansible.builtin.copy:
+        src: files/webserver/login.php
+        dest: /var/www/html/login.php
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: "Deploy index redirect"
+      ansible.builtin.copy:
+        dest: /var/www/html/index.php
+        content: |
+          <?php header('Location: /login.php'); exit; ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: "Ensure Apache runs on port 80 only (no TLS)"
+      ansible.builtin.lineinfile:
+        path: /etc/apache2/ports.conf
+        regexp: '^Listen'
+        line: 'Listen 80'
+
+    - name: "Enable Apache and start"
+      ansible.builtin.service:
+        name: apache2
+        state: started
+        enabled: yes
+
+    - name: "Configure Apache log verbosity for Suricata/Wazuh"
+      ansible.builtin.lineinfile:
+        path: /etc/apache2/apache2.conf
+        line: 'LogLevel info'
+        create: yes
+
+# ------------------------------------------------------------
+# DNS SERVER - dnsmasq sin DNSSEC
+# ------------------------------------------------------------
+- name: "MITM dns_server configuration (Ubuntu 22)"
+  hosts: dns_server
+  become: yes
+  tasks:
+
+    - name: "Update repos"
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: "Install dnsmasq"
+      ansible.builtin.package:
+        state: present
+        name:
+          - dnsmasq
+          - dnsutils
+
+    - name: "Deploy dnsmasq configuration"
+      ansible.builtin.copy:
+        src: files/dnsmasq/dnsmasq.conf
+        dest: /etc/dnsmasq.conf
+        mode: '0644'
+      notify: Restart dnsmasq
+
+    - name: "Disable systemd-resolved to avoid port 53 conflict"
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: stopped
+        enabled: no
+
+    - name: "Enable and start dnsmasq"
+      ansible.builtin.service:
+        name: dnsmasq
+        state: started
+        enabled: yes
+      ignore_errors: true
+
+
+    - name: "Create corporate user jperez on dns_server"
+      ansible.builtin.user:
+        name: jperez
+        password: "{{ 'empresa2024' | password_hash('sha512') }}"
+        shell: /bin/bash
+        create_home: yes
+
+    - name: "Create flags directory on dns_server"
+      ansible.builtin.file:
+        path: /opt/flags
+        state: directory
+        mode: '0755'
+
+  handlers:
+    - name: Restart dnsmasq
+      ansible.builtin.service:
+        name: dnsmasq
+        state: restarted
+      ignore_errors: true
+
+# ------------------------------------------------------------
+# WORKSTATION - Cliente corporativo víctima
+# ------------------------------------------------------------
+- name: "MITM workstation configuration (Ubuntu 22)"
+  hosts: workstation
+  become: yes
+  tasks:
+
+    - name: "Update repos"
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: "Install client tools"
+      ansible.builtin.package:
+        state: present
+        name:
+          - curl
+          - wget
+          - dnsutils
+          - net-tools
+
+    - name: "Copy traffic generator script"
+      ansible.builtin.copy:
+        src: files/workstation/traffic_generator.sh
+        dest: /opt/traffic_generator.sh
+        mode: '0755'
+
+    - name: "Install traffic generator as systemd service"
+      ansible.builtin.copy:
+        src: files/workstation/traffic-generator.service
+        dest: /etc/systemd/system/traffic-generator.service
+        mode: '0644'
+      notify: Enable traffic generator
+
+  handlers:
+    - name: Enable traffic generator
+      ansible.builtin.systemd:
+        name: traffic-generator
+        enabled: yes
+        daemon_reload: yes
+
+# ------------------------------------------------------------
+# MONITOR - Suricata + Wazuh Manager (Blue Team)
+# ------------------------------------------------------------
+- name: "MITM monitor configuration (Ubuntu 22)"
+  hosts: monitor
+  become: yes
+  tasks:
+
+    - name: "Update repos"
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: "Install Suricata"
+      ansible.builtin.package:
+        state: present
+        name:
+          - suricata
+          - suricata-update
+          - jq
+          - python3-pip
+          - tcpdump
+          - net-tools
+
+    - name: "Deploy Suricata configuration"
+      ansible.builtin.copy:
+        src: files/monitor/suricata.yaml
+        dest: /etc/suricata/suricata.yaml
+        mode: '0644'
+
+    - name: "Create Suricata rules directory"
+      ansible.builtin.file:
+        path: /etc/suricata/rules
+        state: directory
+        mode: '0755'
+
+    - name: "Deploy custom MITM detection rules"
+      ansible.builtin.copy:
+        src: files/monitor/mitm_detection.rules
+        dest: /etc/suricata/rules/mitm_detection.rules
+        mode: '0644'
+
+    - name: "Update Suricata rules"
+      ansible.builtin.command: suricata-update
+      ignore_errors: yes
+
+    - name: "Enable and start Suricata"
+      ansible.builtin.service:
+        name: suricata
+        state: started
+        enabled: yes
+
+    - name: "Add Wazuh repository key"
+      ansible.builtin.apt_key:
+        url: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+        state: present
+
+    - name: "Add Wazuh repository"
+      ansible.builtin.apt_repository:
+        repo: "deb https://packages.wazuh.com/4.x/apt/ stable main"
+        state: present
+
+    - name: "Install Wazuh manager"
+      ansible.builtin.package:
+        state: present
+        name:
+          - wazuh-manager
+          - wazuh-dashboard
+          - wazuh-indexer
+
+    - name: "Deploy Wazuh ossec configuration"
+      ansible.builtin.copy:
+        src: files/monitor/ossec.conf
+        dest: /var/ossec/etc/ossec.conf
+        mode: '0644'
+      notify: Restart Wazuh
+
+    - name: "Enable and start Wazuh manager"
+      ansible.builtin.service:
+        name: wazuh-manager
+        state: started
+        enabled: yes
+
+    - name: "Copy evidence pcap pregenerado para analisis Blue Team"
+      ansible.builtin.copy:
+        src: files/monitor/evidence.pcap
+        dest: /opt/evidence.pcap
+        mode: '0644'
+
+    - name: "Create Blue Team capture script"
+      ansible.builtin.copy:
+        dest: /opt/capture_monitor.sh
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          mkdir -p /tmp/suricata_out
+          while true; do
+            tcpdump -i eth0 port 80 or port 53 -w /tmp/live_capture.pcap -G 60 -W 1 > /dev/null 2>&1
+            suricata -r /tmp/live_capture.pcap -c /etc/suricata/suricata.yaml -l /tmp/suricata_out/ -k none > /dev/null 2>&1
+          done
+
+    - name: "Create monitor-capture systemd service"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/monitor-capture.service
+        content: |
+          [Unit]
+          Description=Monitor MITM Capture Service
+          After=network.target
+          [Service]
+          ExecStart=/opt/capture_monitor.sh
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: "Enable monitor-capture service"
+      ansible.builtin.service:
+        name: monitor-capture
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: "Copy Blue Team welcome banner"
+      ansible.builtin.copy:
+        src: files/banner_blueteam.sh
+        dest: /etc/profile.d/banner.sh
+        mode: '0755'
+
+  handlers:
+    - name: Restart Wazuh
+      ansible.builtin.service:
+        name: wazuh-manager
+        state: restarted

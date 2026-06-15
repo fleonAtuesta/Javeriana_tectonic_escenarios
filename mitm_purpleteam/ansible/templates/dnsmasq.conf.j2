@@ -1,0 +1,12 @@
+# dnsmasq.conf - DNS interno corporativo
+domain-needed
+bogus-priv
+no-resolv
+local=/corp.local/
+address=/web-internal.corp.local/10.0.1.7
+address=/intranet.corp.local/10.0.1.7
+address=/corp.local/10.0.1.7
+listen-address=0.0.0.0
+bind-interfaces
+log-queries
+log-facility=/var/log/dnsmasq.log

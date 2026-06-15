@@ -1,0 +1,204 @@
+# The base config ansible playbook for the Password Cracking scenario.
+# This playbook is applied to the base image of each machine in the
+# scenario, before cloning for each trainee. Internet connection is
+# available.
+
+- name: "Model (Ollama)"
+  hosts: model
+  vars:
+    model_name: "qwen"
+    gguf_local_path: "./model/qwen-q4km.gguf"
+    modelfile_local_path: "./model/Modelfile"
+    entrypoint_local_path: "./model/bin/entrypoint.sh"
+    gguf_remote_path: "/opt/ollama/qwen-q4km.gguf"
+    modelfile_remote_path: "/opt/ollama/Modelfile"
+    entrypoint_remote_path: "/opt/ollama/entrypoint.sh"
+
+  tasks:
+    - name: Install dependencies
+      ansible.builtin.apt:
+        name:
+          - zstd
+          - curl
+        state: present
+        update_cache: true
+
+    - name: Install Ollama
+      ansible.builtin.shell: curl -fsSL https://ollama.com/install.sh | sh
+      args:
+        creates: /usr/local/bin/ollama
+
+    - name: Allow port 11434
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 11434
+        jump: ACCEPT
+
+- name: "Flask App"
+  hosts: frontend
+  become: true
+  vars:
+    app_remote_path: "/opt/flask_app"
+    app_local_path: "./frontend/app"
+    templates_local_path: "./frontend/templates"
+    requirements_local_path: "./frontend/requirements.txt"
+
+  tasks:
+    - name: "Update repos"
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install Python and pip
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+          - socat
+        state: present
+        update_cache: true
+
+    - name: Create app directory
+      ansible.builtin.file:
+        path: "{{ app_remote_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy requirements.txt
+      ansible.builtin.copy:
+        src: "{{ requirements_local_path }}"
+        dest: "{{ app_remote_path }}/requirements.txt"
+        mode: '0644'
+
+    - name: Copy Flask app files
+      ansible.builtin.copy:
+        src: "{{ app_local_path }}"
+        dest: "{{ app_remote_path }}"
+        mode: '0644'
+
+    - name: Copy templates folder
+      ansible.builtin.copy:
+        src: "{{ templates_local_path }}"
+        dest: "{{ app_remote_path }}"
+        mode: '0644'
+  
+    - name: Install Python dependencies
+      ansible.builtin.pip:
+        requirements: "{{ app_remote_path }}/requirements.txt"
+        virtualenv: "{{ app_remote_path }}/venv"
+        virtualenv_command: python3 -m venv
+  
+    - name: Allow port 5000
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 5000
+        jump: ACCEPT
+
+- name: Database
+  hosts: database
+  become: true
+
+  vars:
+    pg_version: 16
+    pg_db: nl2sql
+    pg_user: admin
+    pg_password: admin123
+    init_script_src: "./database/init.sql"
+    init_script_dest: "/tmp/init.sql"
+
+  tasks:
+
+    # ── 1. Install PostgreSQL ──────────────────────────────────────────────────
+
+    - name: Install required packages
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3-psycopg2
+          - acl
+        state: present
+        update_cache: true
+
+    - name: Ensure PostgreSQL service is started and enabled
+      service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Allow PostgreSQL to listen on all interfaces
+      ansible.builtin.lineinfile:
+        path: /etc/postgresql/{{ pg_version }}/main/postgresql.conf
+        regexp: "^#?listen_addresses"
+        line: "listen_addresses = '*'"
+
+    - name: Allow remote connections from internal network in pg_hba.conf
+      ansible.builtin.lineinfile:
+        path: /etc/postgresql/{{ pg_version }}/main/pg_hba.conf
+        line: "host    {{ pg_db }}    {{ pg_user }}    10.0.0.0/8    scram-sha-256"
+
+    - name: Restart PostgreSQL to apply config changes
+      service:
+        name: postgresql
+        state: restarted
+
+    # ── 2. Create database user ────────────────────────────────────────────────
+
+    - name: Create PostgreSQL user
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: "{{ pg_user }}"
+        password: "{{ pg_password }}"
+        role_attr_flags: LOGIN
+        state: present
+
+    # ── 3. Create database ─────────────────────────────────────────────────────
+
+    - name: Create PostgreSQL database
+      become_user: postgres
+      community.postgresql.postgresql_db:
+        name: "{{ pg_db }}"
+        owner: "{{ pg_user }}"
+        encoding: UTF8
+        lc_collate: C.UTF-8
+        lc_ctype: C.UTF-8
+        template: template0
+        state: present
+
+    # ── 4. Grant privileges ────────────────────────────────────────────────────
+
+    - name: Grant all privileges on database to user
+      become_user: postgres
+      community.postgresql.postgresql_privs:
+        db: "{{ pg_db }}"
+        role: "{{ pg_user }}"
+        type: database
+        privs: ALL
+        state: present
+
+    # ── 5. Run initial SQL script ──────────────────────────────────────────────
+
+    - name: Copy init SQL script to remote
+      copy:
+        src: "{{ init_script_src }}"
+        dest: "{{ init_script_dest }}"
+        mode: "0644"
+
+    - name: Run initial SQL script
+      become_user: postgres
+      community.postgresql.postgresql_script:
+        db: "{{ pg_db }}"
+        path: "{{ init_script_dest }}"
+
+    - name: Grant all privileges on all tables to user
+      become_user: postgres
+      community.postgresql.postgresql_privs:
+        db: "{{ pg_db }}"
+        role: "{{ pg_user }}"
+        type: table
+        objs: ALL_IN_SCHEMA
+        schema: public
+        privs: ALL
+        state: present

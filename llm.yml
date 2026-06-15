@@ -1,0 +1,48 @@
+base_lab: llm
+
+institution: Javeriana
+
+lab_edition_name: llm
+
+instance_number: 1
+
+teacher_pubkey_dir: ./teacher_pubkeys
+
+student_prefix: estudiante
+
+student_pubkey_dir: ./student_pubkeys
+
+create_students_passwords: true
+
+random_seed: Yjfz1mwpCISi868b329da9893e34099c7d8ad5cb9c941
+
+#Elastic settings
+elastic_settings:
+  enable: no
+  vcpu: 2
+  memory: 8192
+  disk: 30
+
+#Caldera settings
+caldera_settings:
+  enable: no
+  vcpu: 2
+  memory: 2048
+  disk: 20
+
+
+#Guacamole settings
+guacamole_settings:
+  enable: no
+  vcpu: 2
+  memory: 2048
+  disk: 20
+
+#Moodle settings
+moodle_settings:
+  enable: no
+  enable_trainees: yes
+  auto_enroll_trainees: yes
+  vcpu: 2
+  memory: 4096
+  disk: 20

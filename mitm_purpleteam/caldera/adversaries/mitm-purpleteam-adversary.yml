@@ -1,0 +1,23 @@
+---
+# Caldera adversary - MITM Purple Team
+# Ejecuta la cadena completa de ataque MITM de forma automatizada
+# Útil para demostración al instructor o evaluación automatizada
+
+id: mitm-purpleteam-adversary
+name: MITM Purple Team Adversary
+description: >
+  Ejecuta la cadena completa de ataque MITM:
+  reconocimiento ARP → envenenamiento → interceptación HTTP.
+  Diseñado para el escenario de maestría en seguridad digital.
+atomic_ordering:
+  - discovery_arp_scan
+  - credential_access_arp_poison
+  - credential_access_http_intercept
+  - credential_access_dns_spoof
+  - credential_access_ssl_strip
+objective: mitm-objective
+tags:
+  - MITM
+  - T1557
+  - T1040
+  - purple-team

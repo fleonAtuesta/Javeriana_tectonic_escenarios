@@ -1,0 +1,62 @@
+<?php
+session_start();
+$flag = "{{ parameters['net_flag'] }}";
+$users = [
+    "admin" => "password123",
+    "jperez" => "empresa2024"
+];
+$error = "";
+$success = "";
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($users[$_POST['username']]) && $users[$_POST['username']] === $_POST['password']) {
+        $_SESSION['user'] = $_POST['username'];
+        $success = "Login exitoso! Flag: " . $flag;
+    } else {
+        $error = "Credenciales incorrectas";
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Corp Intranet - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a2e; font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { background: #16213e; padding: 40px; border-radius: 10px; width: 380px; box-shadow: 0 0 30px rgba(0,100,255,0.2); }
+        .logo { text-align: center; margin-bottom: 30px; }
+        .logo h1 { color: #0f9b8e; font-size: 24px; }
+        .logo p { color: #888; font-size: 12px; margin-top: 5px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; background: #0f3460; border: 1px solid #1a4a7a; border-radius: 5px; color: #fff; font-size: 14px; }
+        input:focus { outline: none; border-color: #0f9b8e; }
+        button { width: 100%; padding: 12px; background: #0f9b8e; border: none; border-radius: 5px; color: #fff; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #0d8a7e; }
+        .error { background: #c0392b; color: #fff; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 13px; }
+        .success { background: #27ae60; color: #fff; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 13px; }
+        label { color: #aaa; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>🏢 Corp Intranet</h1>
+            <p>Sistema de acceso corporativo interno</p>
+        </div>
+        <?php if ($error): ?>
+            <div class="error">⚠️ <?php echo $error; ?></div>
+        <?php endif; ?>
+        <?php if ($success): ?>
+            <div class="success">✅ <?php echo $success; ?></div>
+        <?php endif; ?>
+        <form method="POST">
+            <label>Usuario</label>
+            <input type="text" name="username" placeholder="usuario" required>
+            <label>Contraseña</label>
+            <input type="password" name="password" placeholder="contraseña" required>
+            <button type="submit">Iniciar Sesión</button>
+        </form>
+    </div>
+</body>
+</html>

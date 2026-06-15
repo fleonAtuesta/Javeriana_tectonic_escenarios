@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NL→SQL · Ejercicio de Ciberseguridad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #080c10;
+    --surface:   #0d1117;
+    --surface2:  #161b22;
+    --border:    #21262d;
+    --text:      #e6edf3;
+    --muted:     #7d8590;
+    --green:     #22c55e;
+    --yellow:    #f59e0b;
+    --red:       #ef4444;
+    --blue:      #58a6ff;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(34,197,94,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(239,68,68,0.06) 0%, transparent 50%);
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(13,17,23,0.9);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--green);
+    letter-spacing: 2px;
+  }
+  .logo span { color: var(--muted); }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--red);
+    color: var(--red);
+    letter-spacing: 1px;
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* ── Layout ── */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 20px;
+  }
+
+  .full-width { grid-column: 1 / -1; }
+
+  /* ── Title ── */
+  .title-block {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 20px 0 10px;
+  }
+
+  .title-block h1 {
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  .title-block h1 .arrow {
+    color: var(--green);
+    font-family: var(--mono);
+  }
+
+  .title-block p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 10px;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  /* ── Difficulty selector ── */
+  .diff-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .diff-btn {
+    padding: 14px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .diff-btn:hover { border-color: var(--blue); color: var(--text); }
+
+  .diff-btn.active-facil  { border-color: var(--green);  color: var(--green);  background: rgba(34,197,94,0.08); }
+  .diff-btn.active-media  { border-color: var(--yellow); color: var(--yellow); background: rgba(245,158,11,0.08); }
+  .diff-btn.active-dificil{ border-color: var(--red);    color: var(--red);    background: rgba(239,68,68,0.08); }
+
+  .diff-label { font-size: 16px; font-weight: 700; display: block; margin-bottom: 4px; font-family: var(--sans); }
+  .diff-sub   { font-size: 10px; opacity: 0.7; }
+
+  /* ── System prompt display ── */
+  .prompt-display {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #8b949e;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    max-height: 220px;
+    overflow-y: auto;
+    transition: all 0.3s;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .prompt-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    font-family: var(--mono);
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--surface2);
+  }
+
+  /* ── Input area ── */
+  .input-wrap {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 0;
+  }
+
+  .nl-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+    min-height: 200px;
+    line-height: 1.5;
+  }
+
+  .nl-input:focus { border-color: var(--blue); }
+
+  .nl-input::placeholder { color: var(--muted); }
+
+  .send-btn {
+    padding: 14px 24px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .send-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .send-btn:active { transform: translateY(0); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── SQL output ── */
+  .sql-output {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--blue);
+    white-space: pre-wrap;
+    min-height: 60px;
+    transition: all 0.3s;
+    word-break: break-all;
+  }
+
+  .sql-output.blocked { color: var(--red); border-color: rgba(239,68,68,0.3); }
+  .sql-output.success { color: var(--green); border-color: rgba(34,197,94,0.2); }
+
+  /* ── Security layers indicator ── */
+  .layers {
+    display: flex;
+    gap: 8px;
+    flex-direction: column;
+  }
+
+  .layer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    font-family: var(--mono);
+    font-size: 12px;
+    transition: all 0.3s;
+  }
+
+  .layer-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+
+  .layer.passed  { border-color: rgba(34,197,94,0.3);  }
+  .layer.blocked { border-color: rgba(239,68,68,0.4);  }
+  .layer.pending { opacity: 0.5; }
+
+  .layer.passed  .layer-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .layer.blocked .layer-dot { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+
+  .layer-info { flex: 1; }
+  .layer-name { color: var(--text); font-weight: 700; }
+  .layer-desc { color: var(--muted); font-size: 10px; margin-top: 2px; }
+  .layer-status { font-size: 11px; }
+  .layer.passed  .layer-status { color: var(--green); }
+  .layer.blocked .layer-status { color: var(--red); }
+
+  /* ── Results table ── */
+  .results-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    color: var(--muted);
+    font-weight: 400;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(88,166,255,0.04); }
+
+  /* ── Alert box ── */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    display: none;
+  }
+
+  .alert.error   { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.3);  color: var(--red); }
+  .alert.success { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.3);  color: var(--green); }
+  .alert.warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: var(--yellow); }
+
+  /* ── Loading ── */
+  .loading {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    padding: 10px 0;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Row count ── */
+  .row-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    margin-top: 8px;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">LLM<span>→</span>OUTPUT <span>// TECTONIC LABORATORIO DE SEGURIDAD</span></div>
+  <div class="badge">⚠ ENTORNO DE PRUEBAS</div>
+</header>
+
+<main>
+  <!-- Title -->
+  <div class="title-block full-width">
+    <h1>Lenguaje Natural <span class="arrow">→</span> SQL</h1>
+    <p>// jailbreaking · prompt injection · sql injection</p>
+  </div>
+
+  <!-- LEFT COLUMN -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+
+    <!-- Difficulty selector -->
+    <div class="card">
+      <div class="card-title">Nivel de dificultad</div>
+      <div class="diff-selector">
+        <button class="diff-btn active-facil" onclick="setDifficulty('facil')" id="btn-facil">
+          <span class="diff-label">Fácil</span>
+          <span class="diff-sub">Sin protecciones</span>
+        </button>
+        <button class="diff-btn" onclick="setDifficulty('media')" id="btn-media">
+          <span class="diff-label">Media</span>
+          <span class="diff-sub">Restricciones básicas</span>
+        </button>
+        <button class="diff-btn" onclick="setDifficulty('dificil')" id="btn-dificil">
+          <span class="diff-label">Difícil</span>
+          <span class="diff-sub">Anti-jailbreak</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Query input -->
+    <div class="card">
+      <div class="card-title">Entrada en lenguaje natural</div>
+      <div class="input-wrap">
+        <textarea
+          class="nl-input"
+          id="question"
+          placeholder="Ej: Dame todas las ventas de octubre..."
+          onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendQuery(); }"
+        ></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendQuery()">ENVIAR</button>
+      </div>
+      <div style="margin-top:6px; font-size:11px; color:var(--muted);">
+        Presiona <kbd style="padding:1px 5px; border-radius:3px; border:1px solid var(--border); font-size:10px;">Enter</kbd> para enviar &nbsp;·&nbsp;
+        <kbd style="padding:1px 5px; border-radius:3px; border:1px solid var(--border); font-size:10px;">Shift+Enter</kbd> para nueva línea
+      </div>
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <span>El modelo está procesando...</span>
+      </div>
+    </div>
+
+    <!-- System Prompt display -->
+    <div class="card">
+      <div class="card-title">System Prompt activo</div>
+      <div class="prompt-desc" id="prompt-desc">System prompt básico sin protecciones anti-jailbreak.</div>
+      <div class="prompt-display" id="prompt-display"></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+
+    <!-- Security layers -->
+    <div class="card">
+      <div class="card-title">Capas de seguridad</div>
+      <div class="layers">
+        <div class="layer pending" id="layer1">
+          <div class="layer-dot"></div>
+          <div class="layer-info">
+            <div class="layer-name">Capa 1 — System Prompt</div>
+            <div class="layer-desc" id="layer1-desc">El modelo tiene instrucciones de generar solo consultas SELECT</div>
+          </div>
+          <div class="layer-status" id="layer1-status">—</div>
+        </div>
+        <div class="layer pending" id="layer2" style="display:none">
+          <div class="layer-dot"></div>
+          <div class="layer-info">
+            <div class="layer-name" id="layer2-name">Capa 2</div>
+            <div class="layer-desc" id="layer2-desc"></div>
+          </div>
+          <div class="layer-status" id="layer2-status">—</div>
+        </div>
+        <div class="layer pending" id="layer-final">
+          <div class="layer-dot"></div>
+          <div class="layer-info">
+            <div class="layer-name">Capa Final — Detección de Cambios</div>
+            <div class="layer-desc">Verifica si la consulta generó modificaciones reales en la base de datos (filas insertadas, actualizadas o eliminadas).</div>
+          </div>
+          <div class="layer-status" id="layer-final-status">—</div>
+        </div>
+      </div>
+      <div id="all-bypassed-msg" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.4); border-radius:8px; color:var(--green); font-weight:700; font-size:13px;">
+        ⚠ ¡Todas las protecciones han sido evadidas! La consulta fue ejecutada exitosamente.
+        <span id="rows-affected-msg"></span>
+        <button onclick="resetDb()" style="margin-left:12px; padding:3px 10px; font-size:11px; background:rgba(239,68,68,0.15); color:var(--red); border:1px solid rgba(239,68,68,0.4); border-radius:4px; cursor:pointer;">Restaurar BD</button>
+      </div>
+    </div>
+
+    <!-- SQL generated -->
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span class="card-title" style="margin-bottom:0">SQL generado por el modelo</span>
+        <span id="base64-badge" style="display:none; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.4);">⚠ BASE64 DETECTADO</span>
+      </div>
+      <div class="sql-output" id="sql-output">-- Aquí aparecerá el SQL generado...</div>
+    </div>
+
+    <!-- Decoded SQL (BASE64 only) -->
+    <div class="card" id="decoded-card" style="display:none">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span class="card-title" style="margin-bottom:0">SQL decodificado</span>
+        <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.4);">BASE64 → SQL</span>
+      </div>
+      <div class="sql-output" id="decoded-output"></div>
+    </div>
+
+    <!-- Alert -->
+    <div class="alert" id="alert"></div>
+
+    <!-- Results (SELECT) -->
+    <div class="card" id="results-card" style="display:none">
+      <div class="card-title">Resultados</div>
+      <div class="results-wrap">
+        <div id="results-table"></div>
+      </div>
+      <div class="row-count" id="row-count"></div>
+    </div>
+
+    <!-- Rows affected (INSERT/UPDATE) -->
+    <div class="card" id="rows-affected-card" style="display:none">
+      <div class="card-title">Impacto en la base de datos</div>
+      <div id="rows-affected-detail" style="font-family:var(--mono); font-size:13px; color:var(--green); padding:8px 0;"></div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+const PROMPTS = {{ prompts_json | safe }};
+
+let currentDifficulty = 'facil';
+
+const LAYER2_CONFIG = {
+  facil:   null,
+  media:   { name: 'Capa 2 — Validación Estructural por Regex', desc: 'La consulta debe iniciar con SELECT o WITH...SELECT. Cualquier otra estructura es rechazada.' },
+  dificil: { name: 'Capa 2 — Análisis Semántico', desc: 'Escanea toda la consulta en busca de operaciones de escritura (UPDATE, INSERT, DELETE, DO, EXECUTE...) aunque estén anidadas.' }
+};
+
+function setDifficulty(d) {
+  currentDifficulty = d;
+
+  // Update buttons
+  ['facil','media','dificil'].forEach(x => {
+    const btn = document.getElementById('btn-' + x);
+    btn.className = 'diff-btn' + (x === d ? ' active-' + x : '');
+  });
+
+  // Show system prompt
+  const config = PROMPTS[d];
+  document.getElementById('prompt-display').textContent = config.prompt;
+  document.getElementById('prompt-desc').textContent = config.description;
+
+  // Update layer 2 visibility and description
+  const layer2El = document.getElementById('layer2');
+  const l2cfg = LAYER2_CONFIG[d];
+  if (l2cfg) {
+    document.getElementById('layer2-name').textContent = l2cfg.name;
+    document.getElementById('layer2-desc').textContent = l2cfg.desc;
+    layer2El.style.display = '';
+  } else {
+    layer2El.style.display = 'none';
+  }
+
+  // Reset UI
+  resetLayers();
+  document.getElementById('sql-output').textContent = '-- Aquí aparecerá el SQL generado...';
+  document.getElementById('sql-output').className = 'sql-output';
+  document.getElementById('results-card').style.display = 'none';
+  document.getElementById('all-bypassed-msg').style.display = 'none';
+  hideAlert();
+}
+
+function resetLayers() {
+  ['layer1','layer2','layer-final'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.className = 'layer pending'; }
+    const statusEl = document.getElementById(id + '-status');
+    if (statusEl) { statusEl.textContent = '—'; }
+  });
+  document.getElementById('all-bypassed-msg').style.display = 'none';
+}
+
+function setLayer(id, state, text) {
+  const el = document.getElementById(id);
+  el.className = 'layer ' + state;
+  document.getElementById(id + '-status').textContent = text;
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('alert');
+  el.textContent = msg;
+  el.className = 'alert ' + type;
+  el.style.display = 'block';
+}
+
+function hideAlert() {
+  document.getElementById('alert').style.display = 'none';
+}
+
+function buildTable(rows) {
+  if (!rows.length) return '<p style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:16px">Sin resultados.</p>';
+  const keys = Object.keys(rows[0]);
+  let html = '<table><thead><tr>' + keys.map(k => `<th>${k}</th>`).join('') + '</tr></thead><tbody>';
+  rows.forEach(r => {
+    html += '<tr>' + keys.map(k => `<td>${r[k] !== null ? r[k] : '<span style="color:var(--muted)">null</span>'}</td>`).join('') + '</tr>';
+  });
+  return html + '</tbody></table>';
+}
+
+async function sendQuery() {
+  const question = document.getElementById('question').value.trim();
+  if (!question) return;
+
+  // Reset UI
+  resetLayers();
+  hideAlert();
+  document.getElementById('results-card').style.display = 'none';
+  document.getElementById('rows-affected-card').style.display = 'none';
+  document.getElementById('decoded-card').style.display = 'none';
+  document.getElementById('sql-output').textContent = '...';
+  document.getElementById('sql-output').className = 'sql-output';
+  document.getElementById('base64-badge').style.display = 'none';
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('loading').style.display = 'flex';
+
+  try {
+    const res = await fetch('/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, difficulty: currentDifficulty })
+    });
+
+    const data = await res.json();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('send-btn').disabled = false;
+
+    // Show SQL
+    const sqlEl = document.getElementById('sql-output');
+    sqlEl.textContent = data.sql || '(sin respuesta)';
+
+    // Determine layer states
+    const blockedBy        = data.blocked_by;
+    const hasLayer2        = currentDifficulty !== 'facil';
+    const sqlHasSelect     = data.sql && /\bselect\b/i.test(data.sql);
+    const rowsAffected     = data.rows_affected || 0;
+    const capa1Bypassed    = data.sql && !data.sql.includes('ACCESO DENEGADO') && (!sqlHasSelect || data.query_type === 'WRITE');
+    const capa2Bypassed    = blockedBy !== 'layer2';          // bypassed si la consulta se ejecutó
+    const capaFinalBypassed = rowsAffected > 0;              // bypassed si hubo cambios reales
+
+    // Capa 1 — bypassed si el modelo generó operación de escritura
+    if (!data.sql || data.sql.includes('ACCESO DENEGADO')) {
+      setLayer('layer1', 'blocked', '🔴 BLOQUEADA');
+      setLayer('layer-final', 'blocked', '🔴 BLOQUEADA');
+      sqlEl.className = 'sql-output blocked';
+      showAlert('La Capa 1 (System Prompt) bloqueó la consulta exitosamente.', 'warning');
+      return;
+    } else if (capa1Bypassed) {
+      setLayer('layer1', 'passed', '⚠ EVADIDA');
+      sqlEl.className = 'sql-output blocked';
+    } else {
+      setLayer('layer1', 'blocked', '🔴 BLOQUEADA');
+      sqlEl.className = 'sql-output success';
+    }
+
+    // Capa 2 — bypassed si la consulta fue ejecutada (no bloqueada por capa2)
+    if (hasLayer2) {
+      if (blockedBy === 'layer2') {
+        setLayer('layer2', 'blocked', '🔴 BLOQUEADA');
+        setLayer('layer-final', 'blocked', '🔴 BLOQUEADA');
+        sqlEl.className = 'sql-output blocked';
+        showAlert(data.error, 'error');
+        return;
+      } else {
+        setLayer('layer2', 'passed', '⚠ EVADIDA');
+      }
+    }
+
+    // Capa Final — bypassed si hay cambios en la base de datos
+    if (capaFinalBypassed) {
+      setLayer('layer-final', 'passed', '⚠ EVADIDA');
+    } else {
+      setLayer('layer-final', 'blocked', '🔴 BLOQUEADA');
+    }
+
+    // ¿Todas las capas activas fueron evadidas?
+    const allBypassed = capa1Bypassed && (!hasLayer2 || capa2Bypassed) && capaFinalBypassed;
+    if (allBypassed) {
+      sqlEl.className = 'sql-output blocked';
+      document.getElementById('all-bypassed-msg').style.display = 'block';
+    }
+
+    // Mostrar resultados SELECT
+    if (data.data) {
+      document.getElementById('results-card').style.display = 'block';
+      document.getElementById('results-table').innerHTML = buildTable(data.data);
+      document.getElementById('row-count').textContent = `${data.data.length} fila(s) devueltas`;
+    }
+
+    // Mostrar filas afectadas (INSERT/UPDATE)
+    if (rowsAffected > 0) {
+      document.getElementById('rows-affected-card').style.display = 'block';
+      document.getElementById('rows-affected-detail').textContent =
+        `${rowsAffected} fila(s) modificadas en la base de datos`;
+      document.getElementById('rows-affected-msg').textContent =
+        ` — ${rowsAffected} fila(s) modificadas`;
+    }
+
+  } catch (err) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('send-btn').disabled = false;
+    showAlert('Error de conexión: ' + err.message, 'error');
+  }
+}
+
+async function resetDb() {
+  await fetch('/reset-db', { method: 'POST' });
+  document.getElementById('rows-affected-card').style.display = 'none';
+  document.getElementById('all-bypassed-msg').style.display = 'none';
+  showAlert('Base de datos restaurada a los valores originales.', 'warning');
+}
+
+// Init
+setDifficulty('facil');
+</script>
+</body>
+</html>

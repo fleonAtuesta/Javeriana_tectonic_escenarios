@@ -1,0 +1,94 @@
+institution: javeriana
+
+lab_name: llm
+
+
+# Guest machines of the scenario
+guest_settings:
+
+  database:
+    memory: 2560
+    monitor: no
+    base_os: ubuntu24
+    entry_point: no
+    create_students_passwords: no
+    gui: no
+
+  model:
+    memory: 3560
+    monitor: no
+    base_os: ubuntu24
+    entry_point: no
+    create_students_passwords: no
+    gui: no
+
+  frontend:
+    entry_point: no
+    memory: 2560
+    vcpu: 1
+    disk: 10
+    base_os: ubuntu24
+    internet_access: no
+    copies: 1
+    monitor: no
+    red_team_agent: no
+    blue_team_agent: no
+    gui: no
+
+
+# Scenario network definition
+topology:
+  # One network named internal, with both machines connected.
+  - name: internal
+    members:
+      - frontend
+      - model
+      - database
+
+# Elastic service configuration
+elastic_settings:
+  # Wheter to deploy this service. Default: no.
+  enable: no
+  # How to monitor instances. traffic (only network traffic with
+  # packetbeat) or endpoint (monitor processes, network traces, files,
+  # logs). Default: traffic.
+  monitor_type: endpoint
+  # Wheter to deploy default policy. Default: yes.
+  deploy_default_policy: yes
+
+# Caldera service configuration
+caldera_settings:
+  # Wheter to deploy this service. Default: no.
+  enable: no
+  memory: 2048
+  vpcu: 2
+  disk: 20
+
+# Guacamole service configuration
+guacamole_settings:
+  # Default values:
+  enable: no
+  memory: 2548
+  vpcu: 2
+  disk: 20
+
+# Moodle service configuration
+moodle_settings:
+  enable: no
+  # Default values:
+  memory: 4096
+  vpcu: 2
+  disk: 20
+
+traffic_rules:
+  - description: Allow access from frontend to model on port 11434
+    source: frontend.internal
+    destination: model.internal
+    port_range: 11434
+    protocol: tcp
+
+  - description: Allow access from frontend to database on port 5432
+    source: frontend.internal
+    destination: database.internal
+    port_range: 5432
+    protocol: tcp

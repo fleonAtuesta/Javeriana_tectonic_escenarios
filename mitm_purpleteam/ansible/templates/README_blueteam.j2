@@ -1,0 +1,24 @@
+============================================================
+CIBER RANGE MITM - CONSOLA BLUE TEAM
+Instancia #{{ instance_number }} | {{ lab_edition_name }}
+============================================================
+
+Dashboard Wazuh: http://localhost:5601
+  Usuario : admin
+  Password : (ver credenciales entregadas por el instructor)
+
+Suricata logs en tiempo real:
+  tail -f /var/log/suricata/fast.log
+  tail -f /var/log/suricata/eve.json | jq .
+
+Flags Blue Team (obtener via Wazuh/Suricata):
+  CTF-FLAG-BLUE-ARP  → Alerta SID 9000001 en Wazuh
+  CTF-FLAG-BLUE-DNS  → Alerta SID 9000004 en Wazuh
+  CTF-FLAG-BLUE-HTTP → Alerta SID 9000005 en Wazuh
+
+Pasos para obtener cada flag Blue Team:
+  1. Identificar la alerta correcta en Wazuh
+  2. Copiar el mensaje completo de la alerta
+  3. La flag esta embebida en el campo msg de la regla
+
+============================================================

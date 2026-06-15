@@ -1,0 +1,209 @@
+---
+# ============================================================
+# Escenario: Man-in-the-Middle desde perspectiva Purple Team
+# Institución: Universidad (adaptar según corresponda)
+# Tesis de Maestría en Seguridad Digital
+# ============================================================
+
+institution: udelar
+lab_name: mitm_purpleteam
+
+# OS base por defecto para todas las máquinas
+default_os: ubuntu22
+
+guest_settings:
+
+  # ----------------------------------------------------------
+  # ATACANTE - Consola Red Team
+  # Punto de entrada del participante para ejercicios ofensivos
+  # ----------------------------------------------------------
+  attacker:
+    entry_point: yes
+    memory: 2048
+    vcpu: 2
+    disk: 20
+    base_os: kali
+    internet_access: no
+    copies: 1
+    monitor: no
+    red_team_agent: yes
+    blue_team_agent: no
+
+  # ----------------------------------------------------------
+  # SERVIDOR WEB VÍCTIMA - App HTTP sin TLS
+  # Sirve login.php con credenciales en claro y CTF flags
+  # ----------------------------------------------------------
+  webserver:
+    entry_point: no
+    memory: 1024
+    vcpu: 1
+    disk: 10
+    base_os: ubuntu22
+    internet_access: no
+    copies: 1
+    monitor: yes
+    red_team_agent: no
+    blue_team_agent: no
+
+  # ----------------------------------------------------------
+  # SERVIDOR DNS INTERNO - Deliberadamente inseguro
+  # Sin DNSSEC, sin validación de origen
+  # ----------------------------------------------------------
+  dns_server:
+    entry_point: no
+    memory: 512
+    vcpu: 1
+    disk: 10
+    base_os: ubuntu22
+    internet_access: no
+    copies: 1
+    monitor: yes
+    red_team_agent: no
+    blue_team_agent: no
+
+  # ----------------------------------------------------------
+  # WORKSTATION - Cliente corporativo víctima
+  # Genera tráfico HTTP automático cada 30 segundos
+  # ----------------------------------------------------------
+  workstation:
+    entry_point: no
+    memory: 512
+    vcpu: 1
+    disk: 10
+    base_os: ubuntu22
+    internet_access: no
+    copies: 1
+    monitor: yes
+    red_team_agent: no
+    blue_team_agent: no
+
+  # ----------------------------------------------------------
+  # MONITOR - Suricata + Wazuh (Blue Team)
+  # Segmento mgmt aislado, inaccesible desde corp/dmz
+  # ----------------------------------------------------------
+  monitor:
+    entry_point: yes
+    memory: 4096
+    vcpu: 2
+    disk: 40
+    base_os: ubuntu22
+    internet_access: no
+    copies: 1
+    monitor: no
+    red_team_agent: no
+    blue_team_agent: yes
+
+# ----------------------------------------------------------
+# TOPOLOGÍA DE RED
+# corp  → red interna corporativa (víctimas + atacante)
+# dmz   → zona servicios web (webserver + atacante)
+# mgmt  → gestión Blue Team (solo monitor)
+# ----------------------------------------------------------
+topology:
+  - name: corp
+    members:
+      - attacker
+      - workstation
+      - dns_server
+      - webserver
+
+      - monitor
+  - name: dmz
+    members:
+      - attacker
+      - webserver
+
+  - name: mgmt
+    members:
+      - monitor
+      - webserver
+      - dns_server
+      - workstation
+
+# ----------------------------------------------------------
+# REGLAS DE TRÁFICO
+# El segmento mgmt es inaccesible desde el atacante.
+# El tráfico de ataque fluye libremente en corp/dmz
+# para permitir los ejercicios MITM.
+# ----------------------------------------------------------
+traffic_rules:
+
+  # Workstation → webserver (tráfico legítimo HTTP)
+  - description: Allow HTTP traffic from workstation to webserver
+    source: workstation.corp
+    destination: webserver.corp
+    port_range: 80
+    protocol: tcp
+
+  # Workstation → DNS server (consultas DNS)
+  - description: Allow DNS queries from workstation to dns_server
+    source: workstation.corp
+    destination: dns_server.corp
+    port_range: 53
+    protocol: udp
+
+  # Attacker → corp (para ARP spoofing y reconocimiento)
+  - description: Allow attacker full access to corp network for MITM exercises
+    source: attacker.corp
+    destination: corp
+    protocol: all
+
+  # Attacker → dmz (para ataques sobre webserver en DMZ)
+  - description: Allow attacker full access to dmz network
+    source: attacker.dmz
+    destination: dmz
+    protocol: all
+
+  # Víctimas → monitor (telemetría Wazuh agente → servidor)
+  - description: Allow Wazuh agent traffic from webserver to monitor
+    source: webserver.mgmt
+    destination: monitor.mgmt
+    port_range: 1514
+    protocol: udp
+
+  - description: Allow Wazuh agent traffic from dns_server to monitor
+    source: dns_server.mgmt
+    destination: monitor.mgmt
+    port_range: 1514
+    protocol: udp
+
+  - description: Allow Wazuh agent traffic from workstation to monitor
+    source: workstation.mgmt
+    destination: monitor.mgmt
+    port_range: 1514
+    protocol: udp
+
+  # Monitor → víctimas (Wazuh manager → agentes, gestión)
+  - description: Allow Wazuh manager to reach agents
+    source: monitor.mgmt
+    destination: mgmt
+    port_range: 1515
+    protocol: tcp
+
+  # Acceso al dashboard Wazuh/Kibana para participantes Blue Team
+  - description: Allow Blue Team access to Wazuh dashboard
+    source: mgmt
+    destination: monitor.mgmt
+    port_range: 5601
+    protocol: tcp
+
+  # BLOQUEO IMPLÍCITO: attacker NO tiene reglas hacia mgmt
+  # Por diseño de Tectonic, todo lo no permitido queda bloqueado.
+  # El atacante no puede alcanzar el monitor aunque comprometa corp/dmz.
+
+# ----------------------------------------------------------
+# SERVICIOS ADICIONALES
+# ----------------------------------------------------------
+caldera_settings:
+  enable: no
+
+elastic_settings:
+  enable: no
+  monitor_type: endpoint
+  deploy_default_policy: yes
+
+guacamole_settings:
+  enable: no
+
+moodle_settings:
+  enable: no

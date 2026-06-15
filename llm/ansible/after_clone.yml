@@ -1,0 +1,184 @@
+- name: "Model (Ollama)"
+  hosts: model
+  become: true
+  vars:
+    model_name: "nl2sql-qwen"
+    # qwen-q4km.gguf is too large for this repo; it is downloaded directly to
+    # the remote host and verified against gguf_sha256.
+    gguf_download_url: "https://example.com/models/qwen-q4km.gguf"
+    gguf_sha256: "66eadb5102635101243985a2f1c3b8caf8da0205ad0e3abdf92ac4a8ee522d9e"
+    ollama_blobs_dir: "/usr/share/ollama/.ollama/models/blobs"
+    gguf_remote_path: "/tmp/qwen-q4km.gguf"
+    modelfile_remote_path: "/tmp/Modelfile"
+
+
+  tasks:
+    - name: Create Ollama blobs directory
+      ansible.builtin.file:
+        path: "{{ ollama_blobs_dir }}"
+        state: directory
+        owner: ollama
+        group: ollama
+        mode: '0755'
+
+    - name: Download GGUF to remote host
+      ansible.builtin.get_url:
+        url: "{{ gguf_download_url }}"
+        dest: "{{ gguf_remote_path }}"
+        checksum: "sha256:{{ gguf_sha256 }}"
+        mode: '0644'
+
+    - name: Generate Modelfile dynamically on remote host
+      ansible.builtin.copy:
+        dest: "{{ modelfile_remote_path }}"
+        content: |
+          FROM {{ gguf_remote_path }}
+
+          TEMPLATE """<|im_start|>system
+          {% raw %}{{ .System }}{% endraw %}<|im_end|>
+          <|im_start|>user
+          {% raw %}{{ .Prompt }}{% endraw %}<|im_end|>
+          <|im_start|>assistant
+          """
+
+          SYSTEM """You are a SQL assistant for PostgreSQL. Only generate SELECT queries on table ventas(id, fecha, producto_id, cliente_id, importe, region). Return only the SQL, no explanations."""
+
+          PARAMETER temperature 0.1
+          PARAMETER num_predict 150
+          PARAMETER top_p 0.9
+          PARAMETER stop "<|im_end|>"
+          PARAMETER stop "<|im_start|>"
+        mode: '0644'
+
+    - name: Set Ollama to listen on all interfaces
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/ollama.service
+        insertafter: '^\[Service\]'
+        line: 'Environment="OLLAMA_HOST=0.0.0.0:11434"'
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Restart Ollama service to apply environment variable
+      ansible.builtin.service:
+        name: ollama
+        state: restarted
+        enabled: true
+
+    - name: Wait for Ollama to be ready
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 11434
+        delay: 5
+        timeout: 30
+
+    - name: Create model in Ollama
+      ansible.builtin.command: ollama create {{ model_name }} -f {{ modelfile_remote_path }}
+      register: ollama_create
+      failed_when: false
+
+    - name: Print create result
+      ansible.builtin.debug:
+        msg:
+          stdout: "{{ ollama_create.stdout }}"
+          stderr: "{{ ollama_create.stderr }}"
+          rc: "{{ ollama_create.rc }}"
+
+    - name: Fail if model creation failed
+      ansible.builtin.fail:
+        msg: "ollama create failed (rc={{ ollama_create.rc }}): {{ ollama_create.stderr }}"
+      when: ollama_create.rc != 0
+
+    - name: Verify model is available
+      ansible.builtin.command: ollama list
+      register: ollama_list
+
+    - name: Print available models
+      ansible.builtin.debug:
+        msg: "{{ ollama_list.stdout }}"
+
+
+- name: "Flask App"
+  hosts: frontend
+  become: true
+  vars:
+    app_remote_path: "/opt/flask_app"
+
+  tasks:
+    - name: Deploy instance-specific environment file
+      ansible.builtin.template:
+        src: templates/env.sh.j2
+        dest: "{{ app_remote_path }}/env.sh"
+        mode: '0755'
+
+    - name: Create systemd service for Flask app
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/flask_app.service
+        content: |
+          [Unit]
+          Description=Flask App
+          After=network.target
+
+          [Service]
+          WorkingDirectory={{ app_remote_path }}
+          # Enforce network interface and port through environment variables
+          Environment="FLASK_RUN_HOST=0.0.0.0"
+          Environment="FLASK_RUN_PORT=5000"
+          Environment="OLLAMA_HOST=http://{{ networks['internal']['members']['model']['1'] }}:11434"
+          Environment="DB_HOST={{ networks['internal']['members']['database']['1'] }}"
+          ExecStart=/opt/flask_app/venv/bin/python /opt/flask_app/app/app.py
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Start Flask app service
+      ansible.builtin.service:
+        name: flask_app
+        state: started
+        enabled: true
+
+    - name: Allow port 5000
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 5000
+        jump: ACCEPT
+
+    - name: Fix xrdp session startup to launch XFCE directly
+      ansible.builtin.copy:
+        dest: /etc/xrdp/startwm.sh
+        mode: '0755'
+        content: |
+          #!/bin/sh
+          if [ -r /etc/profile ]; then
+            . /etc/profile
+          fi
+          unset DBUS_SESSION_BUS_ADDRESS
+          unset XDG_RUNTIME_DIR
+          exec startxfce4
+
+    - name: Restart xrdp services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - xrdp
+        - xrdp-sesman
+
+
+
+    # - name: Configure firewall | Allow specific traffic
+    #   ansible.builtin.iptables:
+    #     chain: INPUT
+    #     protocol: "{{ item.proto | default(omit) }}"
+    #     source: "{{ item.src | default(omit) }}"
+    #     destination_port: "{{ item.port | default(omit) }}"
+    #     in_interface: "{{ item.iface | default(omit) }}"
+    #     ctstate: "{{ item.ctstate | default(omit) }}"
+    #     jump: ACCEPT
