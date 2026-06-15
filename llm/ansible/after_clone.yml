@@ -5,7 +5,7 @@
     model_name: "nl2sql-qwen"
     # qwen-q4km.gguf is too large for this repo; it is downloaded directly to
     # the remote host and verified against gguf_sha256.
-    gguf_download_url: "https://example.com/models/qwen-q4km.gguf"
+    gguf_download_url: "https://huggingface.co/leonfelipe90/llmOutputNL2SQLescenario/resolve/main/qwen-q4km.gguf"
     gguf_sha256: "66eadb5102635101243985a2f1c3b8caf8da0205ad0e3abdf92ac4a8ee522d9e"
     ollama_blobs_dir: "/usr/share/ollama/.ollama/models/blobs"
     gguf_remote_path: "/tmp/qwen-q4km.gguf"
