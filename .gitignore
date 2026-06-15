@@ -1,0 +1,3 @@
+# Large model binaries - too big for GitHub, fetched at provision time
+# (see llm/ansible/after_clone.yml: gguf_download_url)
+*.gguf
