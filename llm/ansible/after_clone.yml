@@ -3,12 +3,9 @@
   become: true
   vars:
     model_name: "nl2sql-qwen"
-    # qwen-q4km.gguf is too large for this repo; it is downloaded directly to
-    # the remote host and verified against gguf_sha256.
-    gguf_download_url: "https://huggingface.co/leonfelipe90/llmOutputNL2SQLescenario/resolve/main/qwen-q4km.gguf"
-    gguf_sha256: "66eadb5102635101243985a2f1c3b8caf8da0205ad0e3abdf92ac4a8ee522d9e"
+    # gguf downloaded to /opt/ollama during base_config (internet available there)
+    gguf_remote_path: "/opt/ollama/qwen-q4km.gguf"
     ollama_blobs_dir: "/usr/share/ollama/.ollama/models/blobs"
-    gguf_remote_path: "/tmp/qwen-q4km.gguf"
     modelfile_remote_path: "/tmp/Modelfile"
 
 
@@ -20,13 +17,6 @@
         owner: ollama
         group: ollama
         mode: '0755'
-
-    - name: Download GGUF to remote host
-      ansible.builtin.get_url:
-        url: "{{ gguf_download_url }}"
-        dest: "{{ gguf_remote_path }}"
-        checksum: "sha256:{{ gguf_sha256 }}"
-        mode: '0644'
 
     - name: Generate Modelfile dynamically on remote host
       ansible.builtin.copy:
@@ -149,28 +139,6 @@
         protocol: tcp
         destination_port: 5000
         jump: ACCEPT
-
-    - name: Fix xrdp session startup to launch XFCE directly
-      ansible.builtin.copy:
-        dest: /etc/xrdp/startwm.sh
-        mode: '0755'
-        content: |
-          #!/bin/sh
-          if [ -r /etc/profile ]; then
-            . /etc/profile
-          fi
-          unset DBUS_SESSION_BUS_ADDRESS
-          unset XDG_RUNTIME_DIR
-          exec startxfce4
-
-    - name: Restart xrdp services
-      ansible.builtin.service:
-        name: "{{ item }}"
-        state: restarted
-      loop:
-        - xrdp
-        - xrdp-sesman
-
 
 
     # - name: Configure firewall | Allow specific traffic

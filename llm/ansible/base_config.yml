@@ -7,9 +7,8 @@
   hosts: model
   vars:
     model_name: "qwen"
-    gguf_local_path: "./model/qwen-q4km.gguf"
-    modelfile_local_path: "./model/Modelfile"
-    entrypoint_local_path: "./model/bin/entrypoint.sh"
+    gguf_download_url: "https://huggingface.co/leonfelipe90/llmOutputNL2SQLescenario/resolve/main/qwen-q4km.gguf"
+    gguf_sha256: "66eadb5102635101243985a2f1c3b8caf8da0205ad0e3abdf92ac4a8ee522d9e"
     gguf_remote_path: "/opt/ollama/qwen-q4km.gguf"
     modelfile_remote_path: "/opt/ollama/Modelfile"
     entrypoint_remote_path: "/opt/ollama/entrypoint.sh"
@@ -27,6 +26,19 @@
       ansible.builtin.shell: curl -fsSL https://ollama.com/install.sh | sh
       args:
         creates: /usr/local/bin/ollama
+
+    - name: Create /opt/ollama directory
+      ansible.builtin.file:
+        path: /opt/ollama
+        state: directory
+        mode: '0755'
+
+    - name: Download GGUF model (internet available at base image stage)
+      ansible.builtin.get_url:
+        url: "{{ gguf_download_url }}"
+        dest: "{{ gguf_remote_path }}"
+        checksum: "sha256:{{ gguf_sha256 }}"
+        mode: '0644'
 
     - name: Allow port 11434
       ansible.builtin.iptables:
